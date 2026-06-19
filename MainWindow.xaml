@@ -1,0 +1,38 @@
+<Window
+    x:Class="TransparentWindowRepro.MainWindow"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+    <!--
+        Transparent background is required here so that the XAML root Grid does not
+        paint an opaque fill over the per-pixel alpha that WS_EX_NOREDIRECTIONBITMAP
+        enables at the DWM level. Any non-Transparent brush here defeats the effect.
+    -->
+    <Grid Background="Transparent"
+          PointerPressed="OnPointerPressed"
+          PointerMoved="OnPointerMoved"
+          PointerReleased="OnPointerReleased">
+
+        <!-- Demo content: a coloured circle floating on the transparent desktop -->
+        <Ellipse Width="120" Height="120"
+                 Fill="#CC1976D2"
+                 HorizontalAlignment="Center"
+                 VerticalAlignment="Center" />
+
+        <TextBlock Text="WinUI 3&#x0a;Transparent"
+                   HorizontalAlignment="Center"
+                   VerticalAlignment="Center"
+                   TextAlignment="Center"
+                   FontWeight="SemiBold"
+                   Foreground="White" />
+
+        <TextBlock Text="Drag me"
+                   HorizontalAlignment="Center"
+                   VerticalAlignment="Bottom"
+                   Margin="0,0,0,16"
+                   FontSize="11"
+                   Opacity="0.7"
+                   Foreground="White" />
+
+    </Grid>
+</Window>
