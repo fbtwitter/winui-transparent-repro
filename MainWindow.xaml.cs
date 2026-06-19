@@ -11,6 +11,9 @@ public sealed partial class MainWindow : Window
 {
     private readonly IntPtr _hwnd;
 
+    // Kept alive to prevent GC — the native subclass holds a function pointer to this delegate
+    private NativeMethods.SUBCLASSPROC? _subclassProc;
+
     // Drag state
     private bool _isDragging;
     private Windows.Foundation.Point _dragStart;
@@ -85,6 +88,15 @@ public sealed partial class MainWindow : Window
         // The backdrop must be applied after the compositor is ready, which is
         // signalled by the first Activated event.
         Activated += OnFirstActivated;
+
+        Closed += (_, _) =>
+        {
+            if (_subclassProc != null)
+            {
+                NativeMethods.RemoveWindowSubclass(_hwnd, _subclassProc, 1);
+                _subclassProc = null;
+            }
+        };
     }
 
     private void OnFirstActivated(object sender, WindowActivatedEventArgs e)
@@ -119,8 +131,35 @@ public sealed partial class MainWindow : Window
             return true;
         }, IntPtr.Zero);
 
+        // WORKAROUND 9: Suppress WM_ERASEBKGND and re-apply styles on WM_DISPLAYCHANGE.
+        //
+        // WM_ERASEBKGND: returning 1 tells GDI not to erase the background before each
+        // paint cycle. Without this, GDI repaints white from the class brush on every
+        // invalidation, producing a white flash visible through semi-transparent XAML.
+        //
+        // WM_DISPLAYCHANGE: DWM resets GWL_EXSTYLE (clearing WS_EX_NOREDIRECTIONBITMAP)
+        // when the display topology changes (monitor connect/disconnect, resolution change).
+        // Re-applying ApplyWindowStyles() here restores the transparent compositing path.
+        //
+        // A native comctl32 subclass is used instead of a managed message hook because it
+        // has zero per-message overhead and the delegate is guaranteed to stay alive for
+        // the lifetime of the window (held by _subclassProc field).
+        _subclassProc = SubclassProc;
+        NativeMethods.SetWindowSubclass(_hwnd, _subclassProc, 1, 0);
+
         // Backdrop and styles are settled — reveal the window.
         ShowWindow(_hwnd, SW_SHOWNOACTIVATE);
+    }
+
+    private IntPtr SubclassProc(IntPtr hWnd, uint uMsg, IntPtr wParam, IntPtr lParam, nuint uIdSubclass, nuint dwRefData)
+    {
+        if (uMsg == NativeMethods.WM_ERASEBKGND)
+            return new IntPtr(1);
+
+        if (uMsg == NativeMethods.WM_DISPLAYCHANGE)
+            DispatcherQueue.TryEnqueue(ApplyWindowStyles);
+
+        return NativeMethods.DefSubclassProc(hWnd, uMsg, wParam, lParam);
     }
 
     private void ApplyWindowStyles()

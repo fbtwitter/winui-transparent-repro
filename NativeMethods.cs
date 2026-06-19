@@ -64,4 +64,27 @@ internal static class NativeMethods
     internal const uint DWMWCP_DONOTROUND              = 1;
     internal const uint DWMWA_BORDER_COLOR             = 34;
     internal const uint DWMWA_COLOR_NONE               = 0xFFFFFFFE;
+
+    // Window messages
+    internal const uint WM_ERASEBKGND   = 0x0014;
+    internal const uint WM_DISPLAYCHANGE = 0x007E;
+
+    // comctl32 — native window subclassing (intercept WM_ERASEBKGND / WM_DISPLAYCHANGE
+    // without polling; the delegate must be kept alive to prevent GC of the function pointer)
+    [UnmanagedFunctionPointer(CallingConvention.StdCall)]
+    internal delegate IntPtr SUBCLASSPROC(
+        IntPtr hWnd, uint uMsg, IntPtr wParam, IntPtr lParam,
+        nuint uIdSubclass, nuint dwRefData);
+
+    [DllImport("comctl32.dll")]
+    internal static extern bool SetWindowSubclass(
+        IntPtr hWnd, SUBCLASSPROC pfnSubclass, nuint uIdSubclass, nuint dwRefData);
+
+    [DllImport("comctl32.dll")]
+    internal static extern bool RemoveWindowSubclass(
+        IntPtr hWnd, SUBCLASSPROC pfnSubclass, nuint uIdSubclass);
+
+    [DllImport("comctl32.dll")]
+    internal static extern IntPtr DefSubclassProc(
+        IntPtr hWnd, uint uMsg, IntPtr wParam, IntPtr lParam);
 }
